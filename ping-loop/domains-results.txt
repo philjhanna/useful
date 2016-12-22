@@ -1,0 +1,6 @@
+
+
+RESULTS
+
+www.bbc.com bbc.map.fastly.net (151.101.128.81):
+www.google.com www.google.com (216.58.192.164):

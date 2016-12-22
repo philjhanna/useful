@@ -1,8 +1,21 @@
 #!/bin/bash
+#
+# if domains looks like this
+#
+# www.bbc.com
+# www.google.com
+#
+# the output is
+# #Hosts entries
+#
+# 151.101.192.81 www.bbc.com
+# 216.58.192.164 www.google.com
+#
+#
 filename='domains.txt'
 echo "" > new-hosts.txt
 echo "" >> new-hosts.txt
-echo "#Hosts entries for AMS based on external DNS" >> new-hosts.txt
+echo "#Hosts entries" >> new-hosts.txt
 echo "" >> new-hosts.txt
 
 while read p; do 
@@ -16,8 +29,6 @@ while read p; do
 			echo ${test_result} $p >> new-hosts.txt 
 		fi
 	fi
-
-	
 done < $filename
 
 cat new-hosts.txt 

@@ -1,7 +1,19 @@
 #!/bin/bash
+#
+# if domains looks like this
+#
+# www.bbc.com
+# www.google.com
+#
+# the output is
+# RESULT
+#
+# www.bbc.com bbc.map.fastly.net (151.101.128.81):
+# www.google.com www.google.com (216.58.192.164):
+#
+#
 filename='domains.txt'
 echo "" > domains-results.txt
-echo "" >> domains-results.txt
 echo "RESULTS" >> domains-results.txt
 echo "" >> domains-results.txt
 
@@ -16,8 +28,6 @@ while read p; do
 			echo $p ${test_result} >> domains-results.txt 
 		fi
 	fi
-
-	
 done < $filename
 
 cat domains-results.txt 

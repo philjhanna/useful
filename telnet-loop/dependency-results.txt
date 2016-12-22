@@ -1,0 +1,6 @@
+
+
+RESULTS
+
+www.google.com 80                     SUCCESS  Connected to www.google.com.
+www.google.com 8001                     FAILED

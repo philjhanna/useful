@@ -4,11 +4,8 @@ var diff = require('diff'),
 	needle = require('needle'),
 	directory = 'output/',
 	urls = [
-		'http://eatyrghost.com/ajax/us-states',
-		'http://eatyrghost.com/ajax/step-1',
-		'http://eatyrghost.com/ajax/step-2',
-		'http://eatyrghost.com/ajax/step-3',
-		'http://eatyrghost.com/ajax/slides'
+		'http://www.morningstar.com',
+		'http://beta.morningstar.com'
 	];
 
 urls.forEach(function (url, index) {

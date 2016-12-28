@@ -1,1 +1,0 @@
-{"date":"Fri, 23 Dec 2016 00:59:31 GMT","server":"Apache","x-frame-options":"SAMEORIGIN","last-modified":"Fri, 23 Dec 2016 00:59:02 GMT","accept-ranges":"bytes","content-length":"123120","cache-control":"max-age=40","expires":"Fri, 23 Dec 2016 01:00:12 GMT","vary":"Accept-Encoding","content-type":"text/html; charset=UTF-8","connection":"close"}

@@ -17,11 +17,40 @@ function CompareReqRes(){
 	this.reqRes1 = new ReqRes();
 	this.reqRes2 = new ReqRes();
 	this.identical = true;
+	this.maxAgeAllowedDiffFactor = 10;
 	this.processDifferenceXFrameOptions = function (key, value1, value2) {
 		if ((value1 == 'SAMEORIGIN, SAMEORIGIN' && value2=='SAMEORIGIN') || (value1 == 'SAMEORIGIN' && value2=='SAMEORIGIN, SAMEORIGIN')) {
 			//ignore - we have a misconfigured server I need to fix
 		} else {
 			this.processDifferenceDefault(key, value1, value2);
+		}
+	}
+	this.processDifferenceCacheControl = function (key, value1, value2) {
+		//currently just assuming max-age is present
+		maxAgePos1 = value1.indexOf('max-age=');
+		maxAgePos2 = value2.indexOf('max-age=');
+		if(maxAgePos1 == -1 && maxAgePos2 == -1){
+			//some other difference than max-age
+			this.processDifferenceDefault(key, value1, value2);
+		} else if((maxAgePos1 == -1 && maxAgePos2 != -1) || (maxAgePos2 == -1 && maxAgePos1 != -1) ){
+			this.processDifferenceRequired('max-age', key + ':' + value1 + ',' + value2 + ' : max-age present for one but not other');
+		} else {
+			maxAgeValue1 = parseInt(value1.substring(maxAgePos1 + 8));
+			maxAgeValue2 = parseInt(value2.substring(maxAgePos1 + 8));
+			if(maxAgeValue1 == maxAgePos2){
+				this.processDifferenceRequired('Unsure, found max-age but after extracting they seem the same. extracting failure.', key + ':' + value1 + ',' + value2);
+			} else if(maxAgeValue1 == 0 || maxAgeValue2 == 0){
+				this.processDifferenceRequired('max-age value', maxAgeValue1 + ',' + maxAgeValue2);
+			} else {
+				maxAgeDiffFactor = maxAgeValue1 > maxAgeValue2 ? maxAgeValue1/maxAgeValue2 : maxAgeValue2/maxAgeValue1;
+				if(maxAgeDiffFactor > this.maxAgeAllowedDiffFactor){
+					this.processDifferenceRequired('max-age value', maxAgeValue1 + ',' + maxAgeValue2 + ' difference factor = ' + maxAgeDiffFactor + ' greater that acceptable amount of ' + this.maxAgeAllowedDiffFactor);
+				} else {
+					//this is NOT a good test.  But I'm going to assume that if the max-ages are similar then we can ignore the difference.
+					//max-age's could be dissimilar for valid reasons or similar accidentally. But I need to filter down the results and look for obvious issues.
+					//console.log('  DIFFERENCE max-age IGNORE :' + maxAgeValue1 + ',' + maxAgeValue2 + ' : ');
+				}
+			}
 		}
 	}
 	this.processDifferenceContentLength = function (key, value1, value2) {
@@ -31,20 +60,26 @@ function CompareReqRes(){
 			this.processDifferenceDefault(key, value1, value2);
 		}
 	}
+	this.processDifferenceDefault = function (key, value1, value2) {
+		this.processDifferenceRequired('default', key + ':' + value1 + ',' + value2);
+	}
+	this.processDifferenceRequired = function (type, message) {
+		console.log('  DIFFERENCE ' + type + ': ' + message);
+		this.identical = false;
+	}
+	//ENTRY point for differences
 	this.processDifference = function (key, value1, value2) {
 		if (value1 == value2) {
 			//this is what we want.  No need to output this yet but I may add these.
 		} else if (key == 'x-frame-options') {
 			this.processDifferenceXFrameOptions(key, value1, value2);
+		} else if (key == 'cache-control') {
+			this.processDifferenceCacheControl(key, value1, value2);
 		} else if (key == 'content-length') {
 			this.processDifferenceContentLength(key, value1, value2);
 		} else {  
 			this.processDifferenceDefault(key, value1, value2);
 		}
-	}
-	this.processDifferenceDefault = function (key, value1, value2) {
-		console.log('  DIFFERENCE (D): ' + key + ':' + value1 + ',' + value2);
-		this.identical = false;
 	}
 } 
 

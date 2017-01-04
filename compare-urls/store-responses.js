@@ -1,4 +1,4 @@
-var files = [],
+var //files = [],
 	fs = require('fs'),
 	needle = require('needle'),
 	directory = './output/',
@@ -25,7 +25,7 @@ paths.forEach(function (paths, indexPaths) {
 			var name = directory + 'details_' + hashCode(paths) + '_' + hashCode(domains) + '.txt';
 			console.log(name + " " + domains + paths);
 			fs.writeFile(name, JSON.stringify(JSON.parse(descJSON).concat(resp.headers)), function (fErr) {});
-			files.push(name); //watch the memory here, could get big and so far we don't need it.
+			//files.push(name); //watch the memory here, could get big and so far we don't need it.
 		});
 	});
 });

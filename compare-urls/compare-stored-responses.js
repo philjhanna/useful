@@ -1,7 +1,61 @@
+//This is in development right now (Jan 2017)
+//THe purpose if to find the difference a caching change will have.
+//Due to the nature of the change I'm expecting that if there are difference (there shouldn't be)
+//then they would show up as http header cache differences which is why this is focusing on these.
+//I will change this to be more generic after. 
 var diff = require('diff'),
 	fs = require('fs'),
 	directory = './output/',
 	firstResponseHeader = null; //this last one is ugle. nasty pattern.
+	outputResultsFile = 'outputtmp.html';
+
+var outputStreamOptions = {encoding: 'utf8'};
+var outputStream;
+
+function outputResult(message){
+	console.log(message);
+	if(outputStream != null){
+		outputStream.write(message + '\r');		
+	}
+}
+function outputResultDifference(compareReqRes,key, value1, value2, note){
+	text = '<tr>' 
+		+ '<td>' + compareReqRes.reqRes1.path + '</td>'
+		+ '<td>' + compareReqRes.reqRes1.domain + '</td>'
+		+ '<td>' + compareReqRes.reqRes2.domain + '</td>'
+		+ '<td>' + key + '</td>'
+		+ '<td>' + value1 + '</td>'
+		+ '<td>' + value2 + '</td>'
+		+ '<td>' + note + '</td>'
+		+ '</tr>';
+	outputResult(text);
+}
+
+function outputResultMessage(compareReqRes,message){
+	text = '<tr>' 
+		+ '<td>' + compareReqRes.reqRes1.path + '</td>'
+		+ '<td>' + compareReqRes.reqRes1.domain + '</td>'
+		+ '<td>' + compareReqRes.reqRes2.domain + '</td>'
+		+ '<td colspan="4">' + message + '</td>'
+		+ '</tr>';
+	outputResult(text);
+}
+
+var buildHTMLFileStart = `
+	<html>
+		<head>
+			<title>Compare URLS</title>
+		</head>
+		<body>
+			<table border=1>
+	`;
+
+
+var buildHTMLFileEnd = `
+			</table>
+		</body>
+	</html>
+	`;
 
 function ReqRes(){
 	this.domain;
@@ -33,21 +87,23 @@ function CompareReqRes(){
 			//some other difference than max-age
 			this.processDifferenceDefault(key, value1, value2);
 		} else if((maxAgePos1 == -1 && maxAgePos2 != -1) || (maxAgePos2 == -1 && maxAgePos1 != -1) ){
-			this.processDifferenceRequired('max-age', key + ':' + value1 + ',' + value2 + ' : max-age present for one but not other');
+			this.processDifferenceRequired(key, value1, value2, 'max-age present for one but not other');
 		} else {
 			maxAgeValue1 = parseInt(value1.substring(maxAgePos1 + 8));
 			maxAgeValue2 = parseInt(value2.substring(maxAgePos1 + 8));
 			if(maxAgeValue1 == maxAgePos2){
-				this.processDifferenceRequired('Unsure, found max-age but after extracting they seem the same. extracting failure.', key + ':' + value1 + ',' + value2);
+				this.processDifferenceRequired(key, value1, value2, 'Unsure, found max-age but after extracting they seem the same. extracting failure.');
 			} else if(maxAgeValue1 == 0 || maxAgeValue2 == 0){
-				this.processDifferenceRequired('max-age value', maxAgeValue1 + ',' + maxAgeValue2);
+				this.processDifferenceRequired(key, value1, value2, 'max-age value: ' + maxAgeValue1 + ',' + maxAgeValue2);
 			} else {
 				maxAgeDiffFactor = maxAgeValue1 > maxAgeValue2 ? maxAgeValue1/maxAgeValue2 : maxAgeValue2/maxAgeValue1;
 				if(maxAgeDiffFactor > this.maxAgeAllowedDiffFactor){
-					this.processDifferenceRequired('max-age value', maxAgeValue1 + ',' + maxAgeValue2 + ' difference factor = ' + maxAgeDiffFactor + ' greater that acceptable amount of ' + this.maxAgeAllowedDiffFactor);
+					this.processDifferenceRequired(key, value1, value2, 'max-age value: ' + maxAgeValue1 + ', ' + maxAgeValue2 + ' difference factor = '
+					 + maxAgeDiffFactor + ' greater that acceptable amount of ' + this.maxAgeAllowedDiffFactor);
 				} else {
 					//this is NOT a good test.  But I'm going to assume that if the max-ages are similar then we can ignore the difference.
-					//max-age's could be dissimilar for valid reasons or similar accidentally. But I need to filter down the results and look for obvious issues.
+					//max-age's could be dissimilar for valid reasons or similar accidentally. 
+					//But I need to filter down the results and look for obvious issues.
 					//console.log('  DIFFERENCE max-age IGNORE :' + maxAgeValue1 + ',' + maxAgeValue2 + ' : ');
 				}
 			}
@@ -61,10 +117,10 @@ function CompareReqRes(){
 		}
 	}
 	this.processDifferenceDefault = function (key, value1, value2) {
-		this.processDifferenceRequired('default', key + ':' + value1 + ',' + value2);
+		this.processDifferenceRequired(key, value1, value2, '');
 	}
-	this.processDifferenceRequired = function (type, message) {
-		console.log('  DIFFERENCE ' + type + ': ' + message);
+	this.processDifferenceRequired = function (key, value1, value2, note) {
+		outputResultDifference(this, key, value1, value2, note);
 		this.identical = false;
 	}
 	//ENTRY point for differences
@@ -99,29 +155,35 @@ var compareObj = function(requestAll1, requestAll2) {
 	compareReqRes.reqRes2.path = requestDetails2['details']['path'];
 	
 	if(compareReqRes.reqRes1.path != compareReqRes.reqRes2.path) {
-		console.log("CRITICAL ERROR: assumed paths would be the same but they are not. We aren't comparing urls that just differ by domain.  Could be ordering maybe. " + 
-					JSON.stringify(requestDetails1['details']) + ',' + JSON.stringify(requestDetails2['details'])
+		outputResultMessage(compareReqRes,"CRITICAL ERROR: assumed paths would be the same but they are not. We aren't comparing urls that just "
+					+ "differ by domain.  Could be ordering maybe. "
+					+ JSON.stringify(requestDetails1['details']) + ',' + JSON.stringify(requestDetails2['details'])
 		);
 	} else {
-		console.log('NEW COMPARISON ' + requestDetails1['details']['path'] + ',' + requestDetails1['details']['domain'] + ',' + requestDetails2['details']['domain']);
 		for (var key in responseHeaders1) {//not, currently missing iteration ove responseHeaders2
 			if (responseHeaders1.hasOwnProperty(key) && responseHeaders2.hasOwnProperty(key)) {
 				compareReqRes.processDifference(key,responseHeaders1[key],responseHeaders2[key]);
 			} else if(responseHeaders1.hasOwnProperty(key)) {
-				console.log('  DIFFERENCE In 1 but not 2 ' + key + ':' + responseHeaders1[key] );
+				outputResultMessage(compareReqRes,'  DIFFERENCE In 1 but not 2 ' + key + ':' + responseHeaders1[key] );
 			} else if(responseHeaders2.hasOwnProperty(key)) {
-				console.log('  DIFFERENCE In 2 but not 1 ' + key + ':' + responseHeaders2[key] );
+				outputResultMessage(compareReqRes,'  DIFFERENCE In 2 but not 1 ' + key + ':' + responseHeaders2[key] );
 			} else {
-				console.log("shouldn't be possible. Neither has a value for a value found.");
+				outputResultMessage(compareReqRes,"shouldn't be possible. Neither has a value for a value found.");
 			}
 	    }
 	    if(compareReqRes.identical){
-	    	console.log('  RESPONSES IDENTICAL');    	
+	    	outputResultMessage(compareReqRes,'RESPONSES IDENTICAL');    	
 	    }
 	}
 }; 
 
 fs.readdir(directory, (err, files) => {
+	outputStream = fs.createWriteStream(outputResultsFile,outputStreamOptions);
+	outputStream.on('finish',function (){
+		console.log('file has been written');
+	});
+	outputResult(buildHTMLFileStart);
+
 	var firstFile = true;
 	files.forEach(file => {
 		//I'm assuming a certain order which is bad
@@ -140,5 +202,13 @@ fs.readdir(directory, (err, files) => {
 			firstFile = true;
  		}
 	});
-})
+
+	outputResult(buildHTMLFileEnd);
+	outputStream.end();
+	//lets see what was written to the file
+	//fs.readFile(outputResultsFile,'utf8',function(err,contents){
+	//	console.log(contents);
+	//});
+
+});
 
